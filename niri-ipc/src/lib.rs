@@ -1216,6 +1216,7 @@ pub struct VrrToSet {
     )]
     pub vrr: bool,
     /// Only enable when the output shows a window matching the variable-refresh-rate window rule.
+    #[serde(default)]
     #[cfg_attr(feature = "clap", arg(long))]
     pub on_demand: bool,
 }
@@ -2260,6 +2261,38 @@ mod tests {
                 "{action}"
             );
         }
+    }
+
+    #[test]
+    fn deserialize_vrr_defaults() {
+        use serde_json::json;
+
+        for (args, on_demand) in [
+            (json!({ "vrr": true }), false),
+            (json!({ "vrr": true, "on_demand": false }), false),
+            (json!({ "vrr": true, "on_demand": true }), true),
+        ] {
+            let request: Request = serde_json::from_value(json!({
+                "Output": { "output": "DP-1", "action": { "Vrr": { "vrr": args } } }
+            }))
+            .unwrap();
+            let Request::Output {
+                action: OutputAction::Vrr { vrr },
+                ..
+            } = request
+            else {
+                panic!("unexpected request");
+            };
+            assert_eq!(
+                vrr,
+                VrrToSet {
+                    vrr: true,
+                    on_demand
+                }
+            );
+        }
+
+        assert!(serde_json::from_value::<VrrToSet>(json!({ "on_demand": true })).is_err());
     }
 
     #[test]
